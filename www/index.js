@@ -15,6 +15,7 @@ canvas.width = CELL_SIZE * width + 2 * BORDER_WIDTH;
 const gl = canvas.getContext("webgl");
 gl.clearColor(1, 1, 1, 1); // every time canvas is cleared it is white
 
+
 if (!gl) {
   console.error("WebGL not supported, falling back on experimental-webgl");
   gl = canvas.getContext("experimental-webgl");
@@ -23,6 +24,15 @@ if (!gl) {
 if (!gl) {
   alert("Your browser does not support WebGL");
 }
+
+const maxPoints = width * height * 4 * 2; // Assuming each cell needs 4 vertices with 2 coordinates each
+//const pointBuffer = new Float32Array(maxPoints);
+const pointBuffer = gl.createBuffer();
+//gl.bufferData(gl.ARRAY_BUFFER, pointBuffer, gl.DYNAMIC_DRAW);
+
+gl.bindBuffer(gl.ARRAY_BUFFER, pointBuffer);
+//gl.bufferData(gl.ARRAY_BUFFER, maxPoints * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(maxPoints), gl.DYNAMIC_DRAW);
 //////
 
 const getIndex = (row, column) => {
@@ -82,8 +92,11 @@ const vertexShaderSource = `
 attribute vec2 a_position;
 uniform vec2 u_resolution;
 void main() {
+	// convert the position from pixels to 0.0 to 1.0
   vec2 zeroToOne = a_position / u_resolution;
+  	// convert from 0->1 to 0->2
   vec2 zeroToTwo = zeroToOne * 2.0;
+  	// convert from 0->2 to -1->+1 (clip space)
   vec2 clipSpace = zeroToTwo - 1.0;
   gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
 }`;
@@ -124,7 +137,6 @@ const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
 const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
 const program = createProgram(gl, vertexShader, fragmentShader);
 
-const positionBuffer = gl.createBuffer();
 const resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
 const colorUniformLocation = gl.getUniformLocation(program, "u_color");
 const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
@@ -137,7 +149,6 @@ function prepToDraw() {
   gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 }
 function drawBorder() {
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   const positions = [];
   
   for (let i = 0; i < BORDER_WIDTH; i++) {
@@ -156,9 +167,9 @@ function drawBorder() {
     positions.push(canvas.width, canvas.height - j);
   }
   
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
   
-  
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(positions));
   gl.uniform4f(colorUniformLocation, 0, 0, 0, 1); // black
   gl.drawArrays(gl.LINES, 0, positions.length / 2);
 }
@@ -167,7 +178,6 @@ function drawPoints() {
   const pointsPtr = display.points();
   const points = new Uint8Array(memory.buffer, pointsPtr, width * height);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   const farPoints = [];
   const nearPoints = [];
 
@@ -192,15 +202,15 @@ function drawPoints() {
     }
   }
 
-
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nearPoints), gl.STATIC_DRAW);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(nearPoints));
   gl.uniform4f(colorUniformLocation, 0, 0, 0, 1); // (black)
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, nearPoints.length / 2);
 
   // Draw alive cells on top
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(farPoints), gl.STATIC_DRAW);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(farPoints));
   gl.uniform4f(colorUniformLocation, 1, 1, 1, 1); // (white)
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, farPoints.length / 2);
+
 }
 
 function drawObjects() {
@@ -212,7 +222,7 @@ function drawObjects() {
 
 
 const renderLoop = () => {
-  debugger;
+  //debugger;
 
   fps.render();
   display.tick();
