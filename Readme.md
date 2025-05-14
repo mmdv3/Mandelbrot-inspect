@@ -1,4 +1,4 @@
-An interactive animation showing mandelbrot set structure. Displayed on tthe browser.
+An interactive animation showcasing the fractal structure of the Mandelbrot set. Displayed on the browser.
 
 ## First run
 ```bash
